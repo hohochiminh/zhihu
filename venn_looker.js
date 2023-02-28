@@ -5,7 +5,7 @@ looker.plugins.visualizations.add({
         circleColors: {
                 label: "Circle Colors",
                 type: "array",
-                default: ["#1f77b4", "#ff7f0e", "#2ca02c"],//, "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"],
+                default: ["#fcbf49", "#457b9d", "#780000", "#0d1b2a", "#fb8500", "#8c564b", "#e377c2", "#7f7f7f", "#000000", "#17becf"],
                 display: "colors",
             section: "Circle",
             order: 0
@@ -128,6 +128,7 @@ looker.plugins.visualizations.add({
         for(var row of data){
             var set = [];
             var dimension_object = row[queryResponse.fields.dimensions[0].name];
+            // var dimension_object2 = row[queryResponse.fields.dimensions[1].name];
             var dimension_html = LookerCharts.Utils.htmlForCell(dimension_object);
             var dimension_name = LookerCharts.Utils.textForCell(dimension_object);
             var dimension_array = dimension_name.split(" & ");
@@ -136,6 +137,7 @@ looker.plugins.visualizations.add({
             set['sets'] = dimension_array;
             set['size'] = measure_value;
             set['html'] = dimension_html;
+            // set['note'] = dimension_object2;
             sets.push(set);
         }
         
@@ -148,144 +150,103 @@ looker.plugins.visualizations.add({
         //Draw the initial set
         var colorArray = [config.circleColors[1], config.circleColors[2], config.circleColors[0], config.circleColors[3], config.circleColors[4], config.circleColors[5], config.circleColors[6], config.circleColors[7], config.circleColors[8], config.circleColors[9]];
         var chart = venn.VennDiagram(colorArray,config.circleFactor)
-                .wrap(false)
-                .fontSize(config.labelSize);
+            .wrap(false)
+            .fontSize(config.labelSize);
         
         //Draw the venn diagram
         var div = d3.select("#venn")
-                .style("width","100%")
-                .style("height","100%")
-                .datum(sets);
+            .style("width","100%")
+            .style("height","100%")
+            .datum(sets);
         
         var layout = chart(div);
-//Change label and circle style 
-        
 
-        div.selectAll(".label")
+          // add a tooltip
+        var tooltip = d3.select("body").append("div")
+              // .attr("class", "venntooltip")
+              .style("position","absolute")
+              .style("text-align","center")
+              .style("width","128px")
+              .style("height","16px")
+              .style("color","#ddd")
+              .style("padding","2px")
+              .style("border","0px")
+              .style("border-radius","15px")
+              .style("opacity","0");
+
+          div.selectAll("path")
+              .style("stroke-opacity", 0.2)
+              .style("stroke", "#1f77b4")
+              .style("stroke-width", 6)
+
+          div.selectAll(".label")
             .style("fill", config.labelColor)
             .style("font-size", config.labelSize)
-        // div.selectAll(".venn-circle path").style("fill-opacity", config.circleOpacity);
-        // div.selectAll("path").style("stroke-opacity", 0).style("stroke", "#fff").style("stroke-width", 3)
-        
+          
+          div.selectAll(".venn-circle path").style("fill-opacity", config.circleOpacity);
 
-        //Only include sublabels if the user chooses to in the viz options
-        if (config.sublabels) {
-            textCentres = layout.textCentres;
+          textCentres = layout.textCentres;
+          layout.enter
+              .append("text")
+              .text(function(d) { return d.size.toLocaleString('en'); })
+              .attr("class", "sublabel")
+              .style("fill", config.sublabelColor)
+              .attr("text-anchor", "middle")
                 
-            // add sublabels    
-            layout.enter
-                .append("text")
-                .text(function(d) { return d.size.toLocaleString('en'); })
-                .attr("class", "sublabel")
-                .style("fill", config.sublabelColor)
-                .attr("text-anchor", "middle")
-                                
-            layout.update
-                .selectAll(".sublabel")
-                .filter(function (d) { return d.sets in textCentres; })
-                .text(function(d) { return d.size.toLocaleString('en'); })
-                .style("font-size", config.sublabelSize)
-                .attr("dy", "25")
-                .attr("x", function(d) { return Math.floor(textCentres[d.sets].x);})
-                .attr("y", function(d) { return Math.floor(textCentres[d.sets].y);});
-        
-            layout.exit
-                    .select(".sublabel")
-                    .attr("dy", "0")
-                    .attr("x", chart.width() /2)
-                    .attr("y", chart.height() /2)
-                    .style("font-size", "0px");
+          layout.update
+            .selectAll(".sublabel")
+            .filter(function (d) { return d.sets in textCentres; })
+            .text(function(d) { return d.size.toLocaleString('en'); })
+            .style("font-size", config.sublabelSize)
+            .attr("dy", "25")
+            .attr("x", function(d) { return Math.floor(textCentres[d.sets].x);})
+            .attr("y", function(d) { return Math.floor(textCentres[d.sets].y);});
+    
+          layout.exit
+                  .select(".sublabel")
+                  .attr("dy", "0")
+                  .attr("x", chart.width() /2)
+                  .attr("y", chart.height() /2)
+                  .style("font-size", "0px");
 
-        } else {
-            div.call(chart);                        
-        }
-        
-        //Only include tooltip if the user chooses to in the viz options
-        if (config.tooltip) {
-            var tooltip = d3.select("body").append("div")
-                    .attr("class", "venntooltip")
-                    .style("position","absolute")
-                    .style("text-align","center")
-                    .style("width","110px")
-                    .style("height","22px")
-                    .style("background",config.tooltipBackgroundColor)
-                    .style("color",config.tooltipColor)
-                    .style("padding","2px")
-                    .style("border","0px")
-                    .style("border-radius","8px")
-                    .style("opacity","0");
+          // add listeners to all the groups to display tooltip on mouseover
+          div.selectAll("g")
+              .on("mouseover", function(d, i) {
+                  // sort all the areas relative to the current item
+                  // venn.sortAreas(div, d);
 
-            div.selectAll("path")
-                .style("stroke-opacity",0)
-                .style("stroke", "fff")
-                .style("stroke-width",3);
-        
-            div.selectAll("g")
-                    .on("mouseover", function(d, i) {
-                        // sort all the areas relative to the current item
-                        venn.sortAreas(div, d);
+                  // Display a tooltip with the current size
+                  tooltip.transition().duration(400).style("opacity", .9);
+                  // tooltip.text(d.size.toLocaleString('en'));
+                  
+                  // highlight the current path
+                  var selection = d3.select(this).transition().duration(400);
+                  selection.select("path")
+                      .style("stroke-width", 10)
+                      .style("fill-opacity", d.sets.length == 1 ? .9 : .0)
+                      .style("stroke-opacity", .2);
+              })
 
-                        // Display a tooltip with the current size
-                        tooltip.transition().duration(400).style("opacity", .9);
-                        tooltip.text(d.size.toLocaleString('en'));
-                    
-                    if(config.isLink) {
-                            var pointer = d3.select(this)
-                                .style("cursor","pointer");
-                    }
-                    
-                    // highlight the current path
-                        var selection = d3.select(this).transition("tooltip").duration(400);
-                        selection.select("path")
-                                .style("stroke-width", 3)
-                                .style("fill-opacity", d.sets.length == 1 ? .4 : .1)
-                                .style("stroke-opacity", 1);
-                    })
-
-                    .on("mousemove", function() {
-                        tooltip.style("left", (d3.event.pageX) + "px")
-                            .style("top", (d3.event.pageY - 28) + "px");
-                    })
-
-                    .on("mouseout", function(d, i) {
-                        tooltip.transition().duration(400).style("opacity", 0);
-                        var selection = d3.select(this).transition("tooltip").duration(400);
-                        selection.select("path")
-                            .style("stroke-width", 0)
-                            .style("fill-opacity", d.sets.length == 1 ? .25 : .0)
-                            .style("stroke-opacity", 0);
-                    });
-        }
-
-        //Dashboard Linking
-        if (config.isLink) {        
-            div.selectAll("g")
-                    .on("click", function(d, i) {
-                        var firstSlash = d.html.indexOf("/");
-                    var amp = d.html.indexOf("&",firstSlash);
-                    var link = d.html.substring(firstSlash,amp);
-                    if (link) { 
-                        if (config.linkTarget == "Same Tab") { location.href = link; }
-                        else { window.open(link);  }
-                    }
-                    });
-
-                if(!config.tooltip) {
-                    div.selectAll("g")
-                        .on("mouseover", function(d, i) {
-                        
-                            var pointer = d3.select(this)
-                                .style("cursor","pointer");
-                    });
-                }
-        }
+              .on("mousemove", function() {
+                  tooltip.style("left", (d3.event.pageX) + "px")
+                         .style("top", (d3.event.pageY - 28) + "px");
+              })
+              
+              .on("mouseout", function(d, i) {
+                  tooltip.transition().duration(600).style("opacity", .9);
+                  var selection = d3.select(this).transition().duration(600);
+                  selection.select("path")
+                      .style("stroke-width", 4)
+                      .style("fill-opacity", d.sets.length == 1 ? .2 : .0)
+                      .style("stroke-opacity", .2);
+              });
     }
 });
 
   (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3-selection'), require('d3-transition')) :
-	typeof define === 'function' && define.amd ? define(['exports', 'd3-selection', 'd3-transition'], factory) :
-	(factory((global.venn = {}),global.d3,global.d3));
+  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3-selection'), require('d3-transition')) :
+  typeof define === 'function' && define.amd ? define(['exports', 'd3-selection', 'd3-transition'], factory) :
+  (factory((global.venn = {}),global.d3,global.d3));
 }(this, (function (exports,d3Selection,d3Transition) { 'use strict';
 
 var SMALL = 1e-10;
